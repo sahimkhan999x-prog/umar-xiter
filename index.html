@@ -210,6 +210,42 @@
             margin: 0 5px; 
         }
 
+        /* --- MUSIC BUTTON --- */
+        .music-toggle-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(45, 140, 240, 0.8);
+            border: 2px solid #2d8cf0;
+            color: white;
+            font-size: 22px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(45, 140, 240, 0.4);
+            transition: all 0.3s;
+        }
+        
+        .music-toggle-btn:hover {
+            background: #2d8cf0;
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(45, 140, 240, 0.6);
+        }
+        
+        .music-toggle-btn.muted {
+            background: rgba(255, 51, 51, 0.8);
+            border-color: #ff3333;
+        }
+        
+        .music-toggle-btn.muted:hover {
+            background: #ff3333;
+        }
+
         @keyframes float { 
             0% { transform: translateY(0px); } 
             50% { transform: translateY(-15px); } 
@@ -234,6 +270,13 @@
             .hero h1 { font-size: 40px; } 
             .services-title { font-size: 32px; } 
             nav { width: 95%; padding: 15px; } 
+            .music-toggle-btn {
+                bottom: 15px;
+                right: 15px;
+                width: 45px;
+                height: 45px;
+                font-size: 20px;
+            }
         }
     </style>
 </head>
@@ -316,47 +359,85 @@
         <p class="copyright">© 2025 UMAR XITERS. All rights reserved. | <a href="#">Terms & Conditions</a> | Developed and Built by <span style="color:#2d8cf0">Sahim</span></p>
     </footer>
 
-    <!-- Background Music - Hidden and Autoplay IMMEDIATELY -->
-    <audio id="backgroundMusic" autoplay loop muted preload="auto">
-        <source src="NO_BATADAO.mp3" type="audio/mpeg">
-        Your browser does not support the audio element.
-    </audio>
+    <!-- Music Toggle Button -->
+    <button class="music-toggle-btn" id="musicToggleBtn">
+        <i class="fas fa-play"></i>
+    </button>
 
     <script>
-        // START MUSIC IMMEDIATELY without waiting for page load
-        document.addEventListener('DOMContentLoaded', function() {
-            const bgMusic = document.getElementById('backgroundMusic');
+        // Vercel এ audio autoplay কাজ না করলে এই solution use করব
+        
+        // Audio management
+        let audio = null;
+        let isPlaying = false;
+        let audioInitialized = false;
+        
+        // Initialize audio on user interaction
+        function initAudio() {
+            if (audioInitialized) return;
             
-            // Try to play immediately
-            const playMusic = () => {
-                bgMusic.muted = false; // Unmute
-                bgMusic.volume = 0.5; // Set volume (0.0 to 1.0)
-                bgMusic.play().catch(e => {
-                    console.log("Autoplay prevented initially, will try on user interaction");
-                    // Set up to play on first user interaction
-                    document.body.addEventListener('click', function playOnClick() {
-                        bgMusic.play().then(() => {
-                            console.log("Music started on user interaction");
-                        }).catch(err => {
-                            console.log("Still can't play:", err);
-                        });
-                        document.body.removeEventListener('click', playOnClick);
-                    }, { once: true });
+            audio = new Audio('NO_BATADAO.mp3');
+            audio.loop = true;
+            audio.volume = 0.7;
+            audio.preload = 'auto';
+            
+            // Load the audio
+            audio.load();
+            audioInitialized = true;
+            
+            console.log("Audio initialized");
+        }
+        
+        // Toggle play/pause
+        function toggleMusic() {
+            if (!audioInitialized) {
+                initAudio();
+            }
+            
+            if (isPlaying) {
+                audio.pause();
+                document.getElementById('musicToggleBtn').innerHTML = '<i class="fas fa-play"></i>';
+                document.getElementById('musicToggleBtn').classList.remove('muted');
+                isPlaying = false;
+            } else {
+                audio.play().then(() => {
+                    document.getElementById('musicToggleBtn').innerHTML = '<i class="fas fa-pause"></i>';
+                    document.getElementById('musicToggleBtn').classList.remove('muted');
+                    isPlaying = true;
+                }).catch(error => {
+                    console.log("Playback failed:", error);
+                    // If playback fails, show muted button
+                    document.getElementById('musicToggleBtn').classList.add('muted');
+                    document.getElementById('musicToggleBtn').innerHTML = '<i class="fas fa-volume-mute"></i>';
                 });
-            };
-            
-            // Try to play as soon as possible
-            setTimeout(playMusic, 100); // Small delay to ensure DOM is ready
-            
-            // Also try when window loads (in case DOMContentLoaded was too early)
-            window.addEventListener('load', playMusic);
-        });
-
+            }
+        }
+        
+        // Page transition
         window.addEventListener('load', () => {
             const overlay = document.querySelector('.transition-overlay');
             setTimeout(() => { overlay.classList.add('slide-away'); }, 300);
+            
+            // Initialize audio but don't play automatically
+            initAudio();
         });
-
+        
+        // Setup music toggle button
+        document.getElementById('musicToggleBtn').addEventListener('click', toggleMusic);
+        
+        // Auto-play after user clicks anywhere on the page (for first time)
+        document.body.addEventListener('click', function autoPlayFirstTime() {
+            if (!isPlaying && audioInitialized) {
+                // Wait a bit and then try to play
+                setTimeout(() => {
+                    toggleMusic();
+                }, 500);
+            }
+            // Remove this listener after first click
+            document.body.removeEventListener('click', autoPlayFirstTime);
+        });
+        
+        // Navigation
         document.querySelectorAll('a').forEach(link => {
             link.addEventListener('click', function(e) {
                 const targetUrl = this.getAttribute('href');
@@ -371,7 +452,8 @@
                 }
             });
         });
-
+        
+        // Scroll animations
         const observer = new IntersectionObserver((entries) => {
             entries.forEach((entry) => { if (entry.isIntersecting) { entry.target.classList.add('show'); } });
         }, { threshold: 0.1 });
